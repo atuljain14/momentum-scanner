@@ -19,6 +19,7 @@ def fetch_data_from_nse(symbol):
         df = pd.json_normalize(res_json['data'])
   else:
     print('error')
+  print('fir se aa gya')
   return df
 
 @st.cache_data
@@ -44,7 +45,54 @@ def reformat_data(data):
     print('eeeeeeeeeeeeopaopwodpwodpwedopewope')    
   return data_dict
 
-index_data = fetch_data_from_nse("NIFTY 50")
+# Title for the app
+st.title("Select Index")
+
+# Options for the dropdown
+options = ["NIFTY 50", "NIFTY NEXT 50", "NIFTY MICROCAP 250"]
+
+# Create the dropdown menu
+selected_option = st.selectbox("Select a index:", options)
+index = selected_option
+
+short_timeframe = st.select_slider(
+    "Select a short term momentum percentage",
+    options=[
+        "10",
+        "25",
+        "50",
+        "75",
+        "100",
+    ],
+)
+
+med_timeframe = st.select_slider(
+    "Select a medium term momentum percentage",
+    options=[
+        "10",
+        "25",
+        "50",
+        "75",
+        "100",
+    ],
+)
+
+long_timeframe = st.select_slider(
+    "Select a long term momentum percentage",
+    options=[
+        "10",
+        "25",
+        "50",
+        "75",
+        "100",
+    ],
+)
+
+if(int(short_timeframe) + int(med_timeframe) + int(long_timeframe) != 100):
+  st.error("Sum should be 100")
+
+#index = "NIFTY 50"
+index_data = fetch_data_from_nse(index)
 df = pd.DataFrame(index_data)
 df = df.rename(columns={'symbol': 'Symbol', 'lastPrice': 'Close'})
 df.Symbol = df.Symbol.apply(lambda x: x + '.NS')
@@ -110,7 +158,10 @@ for key, value in all_data.items():
   last_z_score = value.iloc[-1]['Normalized Z Score']
   final_list.append({"Stock": key, "Score": last_z_score})
 
+
+
 st.dataframe(pd.DataFrame(final_list)) 
+st.dataframe(all_data['EICHERMOT.NS'])
 
 #st.dataframe(all_data['RELIANCE.NS'])
 #st.dataframe(all_data['INFY.NS'])
