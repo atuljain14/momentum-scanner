@@ -94,7 +94,7 @@ def fetch_data_from_yahoo(df):
   symbols = []
   for symbol in df.Symbol:
     symbols.append(symbol)
-  data = yf.download(symbols, interval='1d', period='1y')
+  data = yf.download(symbols, interval='1d', period='1y', multi_level_index=False)
   #st.dataframe(data)
   formated_data = reformat_data(data)
 
