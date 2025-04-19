@@ -62,7 +62,7 @@ with col1:
 @st.cache_data
 def fetch_index_data_from_nse(symbol):
   df=pd.DataFrame()
-  res=session.get(url + symbol, timeout=10)
+  res=session.get(url + symbol, timeout=20)
   if res.status_code == 200:
       res_json = res.json()
       if 'data' in res_json:
