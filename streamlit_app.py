@@ -3,20 +3,23 @@ import pandas as pd
 import yfinance as yf
 import requests
 import numpy as np
+import os
+import time
 
 
 session = requests.sessions.Session()
 session.headers['User-Agent'] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 session.get('https://www.nseindia.com', timeout=10)
 url = "https://www.nseindia.com/api/equity-stockIndices?index="
-
+csv_url = "https://nsearchives.nseindia.com/content/indices/ind_{}list.csv"
+cache_duration_minutes=30
 
 col1, col2 = st.columns([1, 3])
 with col1:
     st.subheader("Configuration",divider="gray")
 
     # Options for the dropdown
-    options = ["NIFTY 50", "NIFTY NEXT 50", "NIFTY MICROCAP 250"]
+    options = ["NIFTY 50", "NIFTY NEXT 50", "NIFTY MICROCAP 250", "NIFTY MIDCAP 150"]
 
     # Create the dropdown menu
     selected_index = st.selectbox("Select an index:", options)
@@ -58,6 +61,49 @@ with col1:
     date = st.date_input("Select a date")
 
     is_run = st.button(label="Run Scan")
+
+@st.cache_data
+def fetch_index_data_from_nse_v2(index_name):
+  print('came here .........')
+  l_csv_url = csv_url
+  if index_name == 'NIFTY MICROCAP 250':
+    l_csv_url = "https://nsearchives.nseindia.com/content/indices/ind_{}_list.csv"
+    #csv_url = csv_url1 
+  filename = index_name.lower().replace(" ", "")
+  url = l_csv_url.format(filename)
+  
+  df = []
+  if os.path.exists(filename):
+    file_modified_time = os.path.getmtime(filename)
+    current_time = time.time()
+    if (current_time - file_modified_time) / 60 < cache_duration_minutes:
+      print(f"Using cached file: {filename}")
+      df = pd.read_csv(filename)
+      df.rename(columns={'symbol': 'Symbol', 'lastPrice': 'Close'},inplace=True)
+      df.Symbol = df.Symbol.apply(lambda x: x + '.NS')
+      df_clean  = pd.DataFrame(df[1:][['Symbol']])
+      return df_clean
+    
+  print(f"Downloading file: {filename}")
+  session = requests.sessions.Session()
+  session.headers['User-Agent'] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+
+  try:
+    response = session.get(url, timeout=30)
+    response.raise_for_status()  # Raise an exception for bad status codes
+    with open(filename, 'wb') as f:
+      f.write(response.content)
+    df = pd.read_csv(filename)
+    df.rename(columns={'symbol': 'Symbol', 'lastPrice': 'Close'},inplace=True)
+    df.Symbol = df.Symbol.apply(lambda x: x + '.NS')
+    df_clean  = pd.DataFrame(df[1:][['Symbol']])
+    return df_clean
+  except requests.exceptions.RequestException as e:
+    print(f"Error downloading file: {e}")
+    return df
+
+
+
 
 @st.cache_data
 def fetch_index_data_from_nse(symbol):
@@ -141,7 +187,7 @@ def compute_wzscore(stock_df):
 
 
 def start():
-    index_df = fetch_index_data_from_nse(selected_index)
+    index_df = fetch_index_data_from_nse_v2(selected_index)
     all_data = fetch_data_from_yahoo(index_df)
     for stock_df in all_data.values():
        compute_daily_returns(stock_df)
@@ -184,7 +230,7 @@ def start():
       last_z_score = value.iloc[-1]['Normalized Z Score']
       final_list.append({"Stock": key, "Score": last_z_score})
 
-    st.dataframe(pd.DataFrame(final_list).sort_values(by='Score', ascending=False).head(10)) 
+    st.dataframe(pd.DataFrame(final_list).sort_values(by='Score', ascending=False).head(30)) 
     #st.dataframe(all_data['AARTIDRUGS.NS'])
 
 
